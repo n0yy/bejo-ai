@@ -35,7 +35,7 @@ class SQLTool(BaseTool):
     def __init__(
         self,
         db_uri: str,
-        sample_limit: int = 3,
+        sample_limit: int = 20,
         cache_ttl: int = 3600,
         cache_size: int = 100,
     ):

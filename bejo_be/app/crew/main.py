@@ -52,5 +52,6 @@ bejo_crew: Crew = Crew(
             type="short_term",
             path=storage_path
         )
-    )
+    ),
+
 )
