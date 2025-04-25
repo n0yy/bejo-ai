@@ -51,16 +51,16 @@ async def conversation(session_id: str, chat_request: ChatRequest):
     )
     session.messages.append(user_message)
 
-    assistant_response = bejo_crew.kickoff({"query": chat_request.message})
-    print(assistant_response.get("tasks_output"))
+    response = bejo_crew.kickoff({"query": chat_request.message})
+    
     assistant_message = (
-        Message(role="assistant", content=assistant_response.raw, timestamp=datetime.now())
+        Message(role="assistant", content=response, timestamp=datetime.now())
     )
     session.messages.append(assistant_message)
     session.updated_at = datetime.now()
     return ChatResponse(
         session_id=session_id,
-        response=assistant_response,
+        response=response,
         messages=session.messages
     )
 
