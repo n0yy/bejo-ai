@@ -23,62 +23,30 @@ sql_dev = Agent(
         """
     ),
     llm=LLM(
-        model="gemini/gemini-2.0-flash",
-        temperature=0
+        model="openrouter/google/gemini-2.0-flash-001",
+        base_url="https://openrouter.ai/api/v1",
+        temperature=0,
     ),
     tools=[sql_tool],
     allow_delegation=False,
-    verbose=True
+    verbose=True,
 )
 
 data_analyst = Agent(
     role="Senior Data Analyst",
-    goal=(
-        "Analyze the data from the SQL Developer and provide insights."
-    ),
+    goal=("Analyze the data from the SQL Developer and provide insights."),
     backstory=(
-        "From the Data (Markdown Data), you will analyze"
-        "You analyze using Python and produce clear, concise insights."
+        "You are skilled at analyzing SQL query results in markdown tables, extracting meaningful patterns, and presenting insights in clear, simple language."
     ),
     llm=LLM(
-        model="gemini/gemini-2.0-flash",
-        temperature=0
+        model="openrouter/google/gemini-2.0-flash-001",
+        base_url="https://openrouter.ai/api/v1",
+        temperature=0,
     ),
     allow_delegation=False,
-    verbose=True
+    verbose=True,
 )
 
-data_viz_agent = Agent(
-    role="Data Visualization Agent",
-    goal=(
-        "Generate a data and layout (JSON format: example: {'data': [...], 'layout': {...}}) to visualize data based on user queries."
-        "Your output must be a valid JSON object."
-    ),
-    backstory=(
-        "You are a data analyst expertise in Data Visualization."
-        "And alse expertise in Data Scientist."
-    ),
-    tools=[],
-    llm=LLM(
-        model="gemini/gemini-2.0-flash",
-        temperature=0.0
-    ),
-    verbose=True
-)
-
-report_writer = Agent(
-    role="Report Writer",
-    goal="Summarize the analysis into a EASY TO UNDERSTAND REPORT.",
-    backstory=(
-        "You must create concise reports highlighting the most important findings."
-    ),
-    llm=LLM(
-        model="gemini/gemini-2.0-flash",
-        temperature=0
-    ),
-    allow_delegation=False, 
-    verbose=True
-)
 
 ## TASKS
 extract_data = Task(
@@ -89,30 +57,19 @@ extract_data = Task(
         "User's Questions:\n{query}\n\nWrite any needed SQL, run it, return the result as markdown table.\n"
     ),
     expected_output="Markdown Table",
-    agent=sql_dev
-)
-
-analyze_data = Task(
-    description="Analyze the data from the SQL Developer. provide a detail explanation for {query}",
-    expected_output="Detailed analysis text",
-    agent=data_analyst,
-    context=[extract_data]
-)
-
-data_viz_task = Task(
-    description=(
-        "Generate a data and layout (JSON format: example: {'data': [...], 'layout': {...}}) to visualize data based on user queries."
-        "The color palette should be a warm color palette."
-        "Your output must be a valid JSON object."
-    ),
-    expected_output="{'data': [...], 'layout': {...}}",
-    agent=data_viz_agent,
-    context=[extract_data, analyze_data]
+    agent=sql_dev,
 )
 
 write_report = Task(
-    description="Write an executive summary of the report from analysis.",
-    expected_output="Paragraph summarizing the analysis.",
-    agent=report_writer,
-    context=[analyze_data]
+    description=(
+        "You are a senior data analyst. Analyze the markdown table from SQL Developer to provide insights 📈.\n\n"
+        "User Questions:\n{query}\n\n"
+        "Markdown Table:\n{context[0].output}\n\n"
+        "Use simple, everyday Indonesian 😊\n"
+        "Maximum 3-5 short paragraphs\n"
+        "Provide concrete insights, not generalizations 🌟"
+    ),
+    expected_output="A concise report in simple Indonesian that's easily understood by non-experts",
+    agent=data_analyst,
+    context=[extract_data],
 )

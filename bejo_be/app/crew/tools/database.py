@@ -35,8 +35,8 @@ class SQLTool(BaseTool):
     def __init__(
         self,
         db_uri: str,
-        sample_limit: int = 20,
-        cache_ttl: int = 3600,
+        sample_limit: int = 3,
+        cache_ttl: int = 10,
         cache_size: int = 100,
     ):
         """
@@ -44,7 +44,7 @@ class SQLTool(BaseTool):
 
         Args:
             db_uri (str): The URI of the database to connect to.
-            sample_limit (int, optional): Maximum number of sample data to fetch per column. Defaults to 20.
+            sample_limit (int, optional): Maximum number of sample data to fetch per column. Defaults to 3.
             cache_ttl (int, optional): Time to live for the cache in seconds. Defaults to 3600.
             cache_size (int, optional): Maximum number of items to store in the cache. Defaults to 100.
         """

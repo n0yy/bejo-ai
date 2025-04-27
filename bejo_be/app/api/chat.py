@@ -10,10 +10,12 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 # In-memory storage for chat sessions (in a real application, use a database)
 chat_session = {}
 
+
 class Message(BaseModel):
-    role: str # user or assistant
+    role: str  # user or assistant
     content: str
     timestamp: datetime = None
+
 
 class ChatSession(BaseModel):
     session_id: str
@@ -21,24 +23,26 @@ class ChatSession(BaseModel):
     created_at: datetime = None
     updated_at: datetime = None
 
+
 class ChatRequest(BaseModel):
     message: str
+
 
 class ChatResponse(BaseModel):
     session_id: str
     response: str
     messages: List[Message]
 
+
 @router.get("", response_model=Dict[str, str])
 async def create_chat_session():
     session_id = str(uuid4())
     chat_session[session_id] = ChatSession(
-        session_id=session_id,
-        created_at=datetime.now(),
-        updated_at=datetime.now()
+        session_id=session_id, created_at=datetime.now(), updated_at=datetime.now()
     )
 
     return {"session_id": session_id}
+
 
 @router.post("/{session_id}", response_model=ChatResponse)
 async def conversation(session_id: str, chat_request: ChatRequest):
@@ -46,23 +50,22 @@ async def conversation(session_id: str, chat_request: ChatRequest):
         raise HTTPException(status_code=404, detail="Chat session not found")
 
     session = chat_session[session_id]
-    user_message = (
-        Message(role="user", content=chat_request.message, timestamp=datetime.now())
+    user_message = Message(
+        role="user", content=chat_request.message, timestamp=datetime.now()
     )
     session.messages.append(user_message)
 
     response = bejo_crew.kickoff({"query": chat_request.message})
-    
-    assistant_message = (
-        Message(role="assistant", content=response.raw, timestamp=datetime.now())
+
+    assistant_message = Message(
+        role="assistant", content=response.raw, timestamp=datetime.now()
     )
     session.messages.append(assistant_message)
     session.updated_at = datetime.now()
     return ChatResponse(
-        session_id=session_id,
-        response=response.raw,
-        messages=session.messages
+        session_id=session_id, response=response.raw, messages=session.messages
     )
+
 
 @router.get("/{session_id}", response_model=ChatSession)
 async def get_chat_session(session_id: str):
@@ -70,6 +73,7 @@ async def get_chat_session(session_id: str):
         raise HTTPException(status_code=404, detail="Chat session not found")
 
     return chat_session[session_id]
+
 
 @router.delete("/{session_id}", response_model=Dict[str, str])
 async def delete_chat_session(session_id: str):
