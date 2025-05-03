@@ -23,8 +23,7 @@ sql_dev = Agent(
         """
     ),
     llm=LLM(
-        model="openrouter/google/gemini-2.0-flash-001",
-        base_url="https://openrouter.ai/api/v1",
+        model="gemini/gemini-2.0-flash",
         temperature=0,
     ),
     tools=[sql_tool],
@@ -39,8 +38,7 @@ data_analyst = Agent(
         "You are skilled at analyzing SQL query results in markdown tables, extracting meaningful patterns, and presenting insights in clear, simple language."
     ),
     llm=LLM(
-        model="openrouter/google/gemini-2.0-flash-001",
-        base_url="https://openrouter.ai/api/v1",
+        model="gemini/gemini-2.0-flash",
         temperature=0,
     ),
     allow_delegation=False,
@@ -63,8 +61,6 @@ extract_data = Task(
 write_report = Task(
     description=(
         "You are a senior data analyst. Analyze the markdown table from SQL Developer to provide insights 📈.\n\n"
-        "User Questions:\n{query}\n\n"
-        "Markdown Table:\n{context[0].output}\n\n"
         "Use simple, everyday Indonesian 😊\n"
         "Maximum 3-5 short paragraphs\n"
         "Provide concrete insights, not generalizations 🌟"
