@@ -1,13 +1,56 @@
 from crewai import Agent, LLM, Task
 from urllib.parse import quote_plus
 from app.crew.tools.database import SQLTool
+from crewai_tools import DirectoryReadTool, FileReadTool, RagTool
+
 import os
 
 db_uri = f"mysql+pymysql://{os.getenv('DB_USER')}:{quote_plus(os.getenv('DB_PASSWORD'))}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
 sql_tool = SQLTool(db_uri=db_uri)
 
-
+config = {
+    "llm": {
+        "provider": "google",
+        "config": {
+            "model": "gemini-2.0-flash",
+        },
+    },
+    "embedding_model": {
+        "provider": "ollama",
+        "config": {"model": "nomic-embed-text:latest"},
+    },
+}
+rag_tool = RagTool(config=config, summarize=True)
+rag_tool.add(data_type="directory", source="storage")
 ## AGENT
+manager = Agent(
+    role="Project Manager",
+    goal="Efficiently manage the crew and ensure high-quality task completion",
+    backstory="You're an experienced project manager, skilled in overseeing complex projects and guiding teams to success. Your role is to coordinate the efforts of the crew members, ensuring that each task is completed on time and to the highest standard.",
+    llm=LLM(
+        model="gemini/gemini-2.0-flash",
+        temperature=0,
+    ),
+    max_iter=1,
+    allow_delegation=True,
+)
+
+reseacher = Agent(
+    role="A Researcher to find related information",
+    goal="Find related information from documents like pdf, docx, xlsx, etc.",
+    backstory=(
+        "You are a researcher who can find related information from documents like pdf, docx, xlsx, etc."
+    ),
+    llm=LLM(
+        model="gemini/gemini-2.0-flash",
+        temperature=0,
+    ),
+    allow_delegation=False,
+    max_iter=1,
+    verbose=True,
+    tools=[rag_tool],
+)
+
 sql_dev = Agent(
     role="SQL Developer",
     goal="Construct and execute SQL queries based on user questions.",
@@ -24,6 +67,7 @@ sql_dev = Agent(
         temperature=0,
     ),
     tools=[sql_tool],
+    max_iter=1,
     allow_delegation=False,
     verbose=True,
 )
@@ -39,11 +83,21 @@ data_analyst = Agent(
         temperature=0,
     ),
     allow_delegation=False,
+    max_iter=1,
     verbose=True,
 )
 
 
 ## TASKS
+find_related_info = Task(
+    description=(
+        "You are a researcher to find related information from documents like pdf, docx, xlsx, etc. based on the user's question.\n\n"
+    ),
+    expected_output="Related information",
+    agent=reseacher,
+)
+
+
 extract_data = Task(
     description=(
         "# Database Context\n"
@@ -57,12 +111,12 @@ extract_data = Task(
 
 write_report = Task(
     description=(
-        "You are a senior data analyst. Analyze the markdown table from SQL Developer to provide insights 📈.\n\n"
+        "You are Experienced Reporter. Write a concise report in simple Indonesian that's easily understood by non-experts.\n\n"
         "Use simple, everyday Indonesian 😊\n"
         "Maximum 3-5 short paragraphs\n"
         "Provide concrete insights, not generalizations 🌟"
     ),
     expected_output="A concise report in simple Indonesian that's easily understood by non-experts",
-    agent=data_analyst,
-    context=[extract_data],
+    agent=manager,
+    context=[extract_data, find_related_info],
 )
