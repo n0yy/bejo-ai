@@ -6,6 +6,7 @@ import os
 db_uri = f"mysql+pymysql://{os.getenv('DB_USER')}:{quote_plus(os.getenv('DB_PASSWORD'))}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
 sql_tool = SQLTool(db_uri=db_uri)
 
+
 ## AGENT
 sql_dev = Agent(
     role="SQL Developer",
@@ -15,11 +16,7 @@ sql_dev = Agent(
         You have a deep understanding of how different databases work and how to optimize queries
     
         NOTES:
-        "Use the 'list_tables' to find available tables."
-        "Use the 'tables_schema' to understand the metadata for the 'list_tables'."
-        "Use the 'execute_sql' to execute queries against the database."
-        "Use the 'check_sql' to check your queries for correctness."
-        "Use 'get_samples_data_from_each_table' to get data samples to understand the data"  
+        "If you don't understand of the database run '_get_context()'"
         """
     ),
     llm=LLM(
