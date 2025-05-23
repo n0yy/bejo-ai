@@ -1,4 +1,5 @@
 import logging
+import threading
 from datetime import datetime
 from typing import List
 from uuid import uuid4
@@ -21,6 +22,10 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
         self.collection_name = settings.CHAT_HISTORY_COLLECTION
         self._messages: List[BaseMessage] = []
         self._loaded = False
+        self._pending_messages: List[BaseMessage] = (
+            []
+        )  # Queue for messages to be stored
+        self._lock = threading.Lock()  # Thread safety
 
     async def _ensure_collection_exists(self):
         """Ensure chat history collection exists"""
@@ -76,23 +81,15 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
 
     def add_message(self, message: BaseMessage) -> None:
         """Add a message to the chat history (synchronous interface)"""
-        # Add to local cache immediately (this is what LangChain expects)
-        self._messages.append(message)
+        with self._lock:
+            # Add to local cache immediately (this is what LangChain expects)
+            self._messages.append(message)
+            # Add to pending queue for async storage
+            self._pending_messages.append(message)
 
-        # Store in Qdrant asynchronously (best effort)
-        import asyncio
-
-        try:
-            # Try to run in existing event loop
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Create a task to run in background
-                loop.create_task(self._store_message_async(message))
-            else:
-                # Run in new event loop
-                asyncio.run(self._store_message_async(message))
-        except Exception as e:
-            logger.error(f"Error scheduling message storage: {str(e)}")
+        logger.info(
+            f"Message queued for storage. Queue size: {len(self._pending_messages)}"
+        )
 
     async def _store_message_async(self, message: BaseMessage) -> None:
         """Store message in Qdrant asynchronously"""
@@ -113,7 +110,8 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
                 "content": message.content,
                 "timestamp": timestamp,
                 "message_index": len(self._messages)
-                - 1,  # Adjust since we already added to local
+                - len(self._pending_messages)
+                + self._pending_messages.index(message),
             }
 
             # Store in Qdrant
@@ -128,6 +126,25 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
         except Exception as e:
             logger.error(f"Error storing message in Qdrant: {str(e)}")
 
+    async def flush_pending_messages(self) -> None:
+        """Store all pending messages to Qdrant"""
+        with self._lock:
+            messages_to_store = self._pending_messages.copy()
+            self._pending_messages.clear()
+
+        if not messages_to_store:
+            return
+
+        logger.info(f"Flushing {len(messages_to_store)} pending messages to storage")
+
+        for message in messages_to_store:
+            try:
+                await self._store_message_async(message)
+            except Exception as e:
+                logger.error(f"Failed to store message: {str(e)}")
+
+        logger.info(f"Successfully flushed messages for session {self.session_id}")
+
     async def add_message_async(self, message: BaseMessage) -> None:
         """Add a message to the chat history (async interface)"""
         await self._load_messages()
@@ -135,25 +152,17 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
         # Add to local cache
         self._messages.append(message)
 
-        # Store in Qdrant
+        # Store in Qdrant immediately
         await self._store_message_async(message)
 
     def clear(self) -> None:
         """Clear all messages for this session (synchronous interface)"""
-        # Clear local cache immediately
-        self._messages.clear()
+        with self._lock:
+            # Clear local cache immediately
+            self._messages.clear()
+            self._pending_messages.clear()
 
-        # Clear from Qdrant asynchronously
-        import asyncio
-
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self._clear_qdrant_async())
-            else:
-                asyncio.run(self._clear_qdrant_async())
-        except Exception as e:
-            logger.error(f"Error scheduling message clearing: {str(e)}")
+        logger.info(f"Messages cleared locally for session {self.session_id}")
 
     async def _clear_qdrant_async(self) -> None:
         """Clear messages from Qdrant asynchronously"""
@@ -195,7 +204,9 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
             )
 
             # Clear local cache
-            self._messages.clear()
+            with self._lock:
+                self._messages.clear()
+                self._pending_messages.clear()
 
         except Exception as e:
             logger.error(f"Error clearing chat history: {str(e)}")
@@ -203,7 +214,6 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
     @property
     def messages(self) -> List[BaseMessage]:
         """Get all messages for this session (synchronous property)"""
-        # Return a copy of messages - this ensures the original list isn't modified
         return self._messages.copy()
 
     async def aget_messages(self) -> List[BaseMessage]:

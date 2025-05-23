@@ -135,10 +135,13 @@ Thought: {agent_scratchpad}
             # Create agent executor
             agent_executor = await self.create_agent_executor(user_level)
 
+            # Get session history instance
+            session_history = self._get_session_history(session_id)
+
             # Create runnable with message history
             agent_with_history = RunnableWithMessageHistory(
                 agent_executor,
-                self._get_session_history,
+                lambda session_id: session_history,  # Return the same instance
                 input_messages_key="input",
                 history_messages_key="chat_history",
             )
@@ -154,6 +157,17 @@ Thought: {agent_scratchpad}
                     content = chunk["output"]
                     if content.strip():
                         yield content
+
+            # Flush pending messages to storage after conversation completes
+            try:
+                await session_history.flush_pending_messages()
+                logger.info(
+                    f"Successfully stored chat history for session {session_id}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to store chat history for session {session_id}: {str(e)}"
+                )
 
         except Exception as e:
             logger.error(f"Chat error: {str(e)}")
