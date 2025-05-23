@@ -1,0 +1,49 @@
+from pydantic_settings import BaseSettings
+from typing import Optional
+from dotenv import load_dotenv
+import os
+
+load_dotenv
+
+
+class Settings(BaseSettings):
+    """Application settings"""
+
+    # API Settings
+    app_name: str = "BEJO Agentic RAG API"
+    app_version: str = "2.0.0"
+    debug: bool = False
+
+    # Qdrant Settings
+    qdrant_host: str = "localhost"
+    qdrant_port: int = 6333
+
+    # Google AI API
+    google_api_key: Optional[str] = os.getenv("GOOGLE_API_KEY")
+
+    # LLM Settings
+    default_model: str = "gemini-2.0-flash"
+    default_temperature: float = 0.7
+
+    # Agent Settings
+    max_iterations: int = 5
+    max_tools_per_agent: int = 10
+
+    # Document Processing
+    default_chunk_size: int = 1000
+    default_chunk_overlap: int = 200
+    max_file_size_mb: int = 100
+
+    # CORS Settings
+    cors_origins: list = ["*"]
+    cors_methods: list = ["*"]
+    cors_headers: list = ["*"]
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+
+def get_settings() -> Settings:
+    """Get settings instance"""
+    return Settings()
