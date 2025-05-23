@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # API Settings
-    APP_NAME: str = "BEJO RAG Assistant API"
+    APP_NAME: str = "BEJO API"
     VERSION: str = "1.1.3"
     DESCRIPTION: str = "Advanced RAG-based document querying with agentic AI"
 

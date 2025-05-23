@@ -1,7 +1,6 @@
-import json
 import logging
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List
 from uuid import uuid4
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -136,7 +135,6 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
         except Exception as e:
             logger.error(f"Error clearing chat history: {str(e)}")
 
-    @property
     async def messages(self) -> List[BaseMessage]:
         """Get all messages for this session"""
         await self._load_messages()

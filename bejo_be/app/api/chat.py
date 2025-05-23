@@ -1,7 +1,6 @@
-import json
 import logging
 from uuid import uuid4
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app.models.requests import ChatRequest, InitChatRequest

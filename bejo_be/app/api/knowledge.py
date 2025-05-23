@@ -1,6 +1,6 @@
 import json
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app.models.requests import EmbedRequest

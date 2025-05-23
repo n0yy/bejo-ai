@@ -1,7 +1,6 @@
-import os
 import logging
 from uuid import uuid4
-from typing import List, AsyncGenerator, Dict, Any
+from typing import AsyncGenerator, Dict, Any
 from langchain_docling import DoclingLoader
 from langchain_docling.loader import ExportType
 from langchain_text_splitters import RecursiveCharacterTextSplitter
