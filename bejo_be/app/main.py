@@ -1,83 +1,64 @@
 import logging
-import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config.settings import get_settings
-from .api.routes import chat, knowledge, health
-from .services.dependencies import get_retrieval_service
-from .utils.logging import setup_logging
+from app.core.config import settings
+from app.core.logging import setup_logging
+from app.api import chat, knowledge, health
+from app.services.vectors import VectorService
+
+# Setup logging
+logger = setup_logging()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events"""
+    """Application lifespan management"""
     # Startup
-    logger = logging.getLogger(__name__)
-    logger.info("Starting BEJO Agentic RAG API...")
+    logger.info("Starting BEJO RAG API...")
 
-    try:
-        # Initialize retrieval service and collections
-        retrieval_service = get_retrieval_service()
-        logger.info("Retrieval service initialized")
+    # Initialize vector service and ensure collections exist
+    vector_service = VectorService()
 
-        # Ensure basic collections exist
-        retrieval_service._ensure_collection_exists("bejo-knowledge-level-1")
-        logger.info("Collections initialized")
+    # Ensure knowledge collections exist
+    for category, collection_name in settings.CATEGORY_COLLECTIONS.items():
+        await vector_service.ensure_collection_exists(collection_name)
 
-    except Exception as e:
-        logger.error(f"Failed to initialize application: {e}")
-        raise
+    # Ensure chat history collection exists
+    await vector_service.ensure_collection_exists(settings.CHAT_HISTORY_COLLECTION)
+
+    logger.info("Application started successfully")
 
     yield
 
     # Shutdown
-    logger.info("Shutting down BEJO Agentic RAG API...")
+    logger.info("Shutting down BEJO RAG API...")
 
 
-def create_app() -> FastAPI:
-    """Create FastAPI application"""
-    settings = get_settings()
+# Create FastAPI app
+app = FastAPI(
+    title=settings.APP_NAME,
+    description=settings.DESCRIPTION,
+    version=settings.VERSION,
+    lifespan=lifespan,
+)
 
-    # Setup logging
-    setup_logging(debug=settings.debug)
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    # Create app
-    app = FastAPI(
-        title=settings.app_name,
-        version=settings.app_version,
-        description="Agentic RAG API for intelligent document retrieval and chat",
-        lifespan=lifespan,
-    )
-
-    # Add CORS middleware
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=settings.cors_methods,
-        allow_headers=settings.cors_headers,
-    )
-
-    # Include routers
-    app.include_router(chat.router)
-    app.include_router(knowledge.router)
-    app.include_router(health.router)
-
-    return app
-
-
-# Create app instance
-app = create_app()
-
+# Include routers
+app.include_router(chat.router)
+app.include_router(knowledge.router)
+app.include_router(health.router)
 
 if __name__ == "__main__":
-    settings = get_settings()
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.debug,
-        log_level="info" if not settings.debug else "debug",
-    )
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

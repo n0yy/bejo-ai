@@ -1,9 +1,6 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 from typing import Optional
-from dotenv import load_dotenv
-import os
-
-load_dotenv
 
 
 class Settings(BaseSettings):
@@ -19,7 +16,7 @@ class Settings(BaseSettings):
     qdrant_port: int = 6333
 
     # Google AI API
-    google_api_key: Optional[str] = os.getenv("GOOGLE_API_KEY")
+    google_api_key: Optional[str] = Field(default=None)
 
     # LLM Settings
     default_model: str = "gemini-2.0-flash"
@@ -39,9 +36,11 @@ class Settings(BaseSettings):
     cors_methods: list = ["*"]
     cors_headers: list = ["*"]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="allow",
+    )
 
 
 def get_settings() -> Settings:
