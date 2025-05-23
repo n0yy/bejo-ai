@@ -22,10 +22,9 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
         self.collection_name = settings.CHAT_HISTORY_COLLECTION
         self._messages: List[BaseMessage] = []
         self._loaded = False
-        self._pending_messages: List[BaseMessage] = (
-            []
-        )  # Queue for messages to be stored
-        self._lock = threading.Lock()  # Thread safety
+        self._pending_messages: List[BaseMessage] = []
+        self._lock = threading.Lock()
+        self._message_counter = 0  # FIXED: Add counter for message indexing
 
     async def _ensure_collection_exists(self):
         """Ensure chat history collection exists"""
@@ -69,6 +68,8 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
                 elif msg_type == "ai":
                     self._messages.append(AIMessage(content=content))
 
+            # FIXED: Update message counter based on loaded messages
+            self._message_counter = len(self._messages)
             self._loaded = True
             logger.info(
                 f"Loaded {len(self._messages)} messages for session {self.session_id}"
@@ -91,8 +92,10 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
             f"Message queued for storage. Queue size: {len(self._pending_messages)}"
         )
 
-    async def _store_message_async(self, message: BaseMessage) -> None:
-        """Store message in Qdrant asynchronously"""
+    async def _store_message_async(
+        self, message: BaseMessage, message_index: int = None
+    ) -> None:
+        """Store message in Qdrant asynchronously - FIXED: Accept message_index parameter"""
         try:
             await self._ensure_collection_exists()
 
@@ -104,14 +107,18 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
             # Using a zero vector since we're using metadata filtering
             vector = [0.0] * settings.VECTOR_SIZE
 
+            # FIXED: Use provided message_index or increment counter
+            if message_index is None:
+                with self._lock:
+                    message_index = self._message_counter
+                    self._message_counter += 1
+
             payload = {
                 "session_id": self.session_id,
                 "type": "human" if isinstance(message, HumanMessage) else "ai",
                 "content": message.content,
                 "timestamp": timestamp,
-                "message_index": len(self._messages)
-                - len(self._pending_messages)
-                + self._pending_messages.index(message),
+                "message_index": message_index,
             }
 
             # Store in Qdrant
@@ -127,9 +134,11 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
             logger.error(f"Error storing message in Qdrant: {str(e)}")
 
     async def flush_pending_messages(self) -> None:
-        """Store all pending messages to Qdrant"""
+        """Store all pending messages to Qdrant - FIXED: Proper indexing"""
         with self._lock:
             messages_to_store = self._pending_messages.copy()
+            # Calculate starting index for these messages
+            starting_index = self._message_counter - len(messages_to_store)
             self._pending_messages.clear()
 
         if not messages_to_store:
@@ -137,11 +146,15 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
 
         logger.info(f"Flushing {len(messages_to_store)} pending messages to storage")
 
-        for message in messages_to_store:
+        # FIXED: Store messages with proper indexing
+        for i, message in enumerate(messages_to_store):
             try:
-                await self._store_message_async(message)
+                message_index = starting_index + i
+                await self._store_message_async(message, message_index)
             except Exception as e:
-                logger.error(f"Failed to store message: {str(e)}")
+                logger.error(
+                    f"Failed to store message at index {starting_index + i}: {str(e)}"
+                )
 
         logger.info(f"Successfully flushed messages for session {self.session_id}")
 
@@ -161,6 +174,7 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
             # Clear local cache immediately
             self._messages.clear()
             self._pending_messages.clear()
+            self._message_counter = 0  # FIXED: Reset counter
 
         logger.info(f"Messages cleared locally for session {self.session_id}")
 
@@ -207,6 +221,7 @@ class QdrantChatMessageHistory(BaseChatMessageHistory):
             with self._lock:
                 self._messages.clear()
                 self._pending_messages.clear()
+                self._message_counter = 0
 
         except Exception as e:
             logger.error(f"Error clearing chat history: {str(e)}")

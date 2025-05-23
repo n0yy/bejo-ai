@@ -78,7 +78,7 @@ class AgentService:
             name="search_knowledge",
             description="Search the knowledge base for relevant information based on user query",
             args_schema=SearchInput,
-            coroutine=search_knowledge,  # It'll tell langchain this is async
+            coroutine=search_knowledge,
         )
 
     def _get_session_history(self, session_id: str) -> QdrantChatMessageHistory:
@@ -89,9 +89,11 @@ class AgentService:
 
     async def create_agent_executor(self, user_level: int) -> AgentExecutor:
         """Create agent executor with tools based on user level"""
-        tools = [self._create_search_tool(user_level)]
+        tools = [
+            self._create_search_tool(user_level),
+        ]
 
-        # React agent prompt
+        # FIXED: Updated React agent prompt with correct tool format
         prompt = PromptTemplate.from_template(
             """
 You are BEJO, an intelligent assistant with access to a knowledge base.
@@ -104,11 +106,14 @@ Use the following format:
 Question: the input question you must answer
 Thought: you should always think about what to do
 Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
+Action Input: the input to the action (should be a JSON object)
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can repeat N times)
 Thought: I now know the final answer
 Final Answer: the final answer to the original input question
+
+IMPORTANT: When using Action Input, provide it as a JSON object like this:
+{{"query": "your search query here"}}
 
 Begin!
 
@@ -125,6 +130,7 @@ Thought: {agent_scratchpad}
             verbose=True,
             handle_parsing_errors=True,
             max_iterations=3,
+            # memory= what should replace in here?
         )
 
     async def chat_with_history(
@@ -141,7 +147,7 @@ Thought: {agent_scratchpad}
             # Create runnable with message history
             agent_with_history = RunnableWithMessageHistory(
                 agent_executor,
-                lambda session_id: session_history,  # Return the same instance
+                lambda session_id: session_history,
                 input_messages_key="input",
                 history_messages_key="chat_history",
             )

@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     # API Settings
     APP_NAME: str = "BEJO API"
     VERSION: str = "1.1.3"
-    DESCRIPTION: str = "Advanced RAG-based document querying with agentic AI"
+    DESCRIPTION: str = "RAG -- Agentic AI "
 
     # LLM Settings
     GOOGLE_API_KEY: str
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Document Processing
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
-    RETRIEVAL_K: int = 5
+    RETRIEVAL_K: int = 3
 
     # Collections - Each category has its own collection
     CATEGORY_COLLECTIONS: Dict[int, str] = {
