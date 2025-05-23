@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str
     LLM_MODEL: str = "gemini-2.0-flash"
     EMBEDDING_MODEL: str = "models/text-embedding-004"
-    LLM_TEMPERATURE: float = 0.3
+    LLM_TEMPERATURE: float = 0.7
 
     # Qdrant Settings
     QDRANT_HOST: str = "localhost"
